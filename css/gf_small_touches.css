@@ -92,3 +92,10 @@ img {
     /* padding: 5px 0.5em 5px 0.5em; */
     /* border: 1px solid #000000; */
 }
+
+a { color: #009; }
+a:hover { 
+    color: #900; 
+    background-color: #DEF; 
+    /* background-color: #FFD;  */
+}
