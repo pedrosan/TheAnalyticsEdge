@@ -1,0 +1,46 @@
+---
+title: "Reproducible Notes<br />for 'The Analytics Edge' Lectures"
+subtitle    : 
+author      : Giovanni Fossati
+job         : 
+output      : 
+  html_document:
+    self_contained: true
+    theme: cerulean
+    highlight: tango
+    css: css/gf_small_touches.css
+    mathjax: "default"
+---
+
+```{r setup, cache = FALSE, echo = FALSE, message = FALSE, warning = FALSE, tidy = FALSE}
+require(knitr)
+options(width = 160, scipen = 5)
+# options(width = 100, digits = 7)
+opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE, 
+               collapse = TRUE, tidy = FALSE,
+               cache = FALSE, cache.path = '.cache/', 
+               fig.align = 'left', dpi = 100, fig.path = 'figures/Content/')
+```
+
+
+_Rmarkdown_ reproducible notes following lectures of the edX/MIT MOOC Course 
+[_The Analytics Edge_](https://www.edx.org/course/analytics-edge-mitx-15-071x-0)
+![](figures/Content/edx_logo_40pct.png)
+
+
+They are published on my [RPubs repository](http://rpubs.com/PedroSan), at the following URLs:
+
+* [Unit 2 : Moneyball](http://rpubs.com/PedroSan/TAEu2_Moneyball)
+* [Unit 2 : NBA MoneyBall (recitation)](http://rpubs.com/PedroSan/TAEu2_NBA)
+* [Unit 3 : Replicating Expert Assessment](http://rpubs.com/PedroSan/TAEu3_Expert)
+* [Unit 4 : Judge, Jury and Classifier](http://rpubs.com/PedroSan/TAEu4_SCOTUS)
+* [Unit 4 : Predicting Health Care Cost Risk](http://rpubs.com/PedroSan/TAEu4_HealthCareCosts)
+
+Please note that I made them for my own interest and benefit.    
+I posted them in case they could be helpful for somebody else.
+
+__Note__: [source files available on GitHub](https://github.com/pedrosan/TheAnalyticsEdge)
+![](figures/Content/github_icon_24px.png)
+
+
+---
