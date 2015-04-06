@@ -1,3 +1,4 @@
 .cache/*
 .Rhistory
 .Rproj.user
+.*.swp
