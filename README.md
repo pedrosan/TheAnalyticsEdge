@@ -1,6 +1,7 @@
 # TheAnalyticsEdge
 
-Notes from the edX/MIT MOOC Course [_The Analytics Edge_](https://courses.edx.org/courses/MITx/15.071x_2/1T2015/info)
+Rmarkdown reproducible notes following lectures of the edX/MIT MOOC Course 
+[_The Analytics Edge_](https://courses.edx.org/courses/MITx/15.071x_2/1T2015/info)
 
 They are published on my [RPubs repository](http://rpubs.com/PedroSan)
 
@@ -10,4 +11,8 @@ They are published on my [RPubs repository](http://rpubs.com/PedroSan)
 * [The Analytics Edge - Unit 4 : Judge, Jury and Classifier](http://rpubs.com/PedroSan/TAEu4_SCOTUS)
 * [The Analytics Edge - Unit 4 : Predicting Health Care Cost Risk](http://rpubs.com/PedroSan/TAEu4_HealthCareCosts)
 
+Please note that these were made for my own interest and benefit and posted just in case they 
+could be helpful for somebody else.
+
+-GF
 
