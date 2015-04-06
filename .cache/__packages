@@ -1,0 +1,14 @@
+base
+knitr
+dplyr
+magrittr
+ggplot2
+caTools
+gplots
+ROCR
+rpart
+rpart.plot
+randomForest
+lattice
+caret
+e1071

@@ -1,0 +1,368 @@
+---
+title: "The Analytics Edge - Unit 2 Recitation<br /> Moneyball in the NBA"
+subtitle    : Reproducible notes following lecture slides and videos
+author      : Giovanni Fossati
+job         : Rice University
+output      : 
+  html_document:
+    self_contained: true
+    theme: cerulean
+    highlight: tango
+    css: css/gf_small_touches.css
+    mathjax: "default"
+---
+
+```{r setup, cache = FALSE, echo = FALSE, message = FALSE, warning = FALSE, tidy = FALSE}
+require(knitr)
+options(width = 160, scipen = 5)
+options(dplyr.print_max = 200)
+# options(width = 100, digits = 7)
+opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE, 
+               collapse = TRUE, tidy = FALSE,
+               cache = TRUE, cache.path = '.cache/', 
+               fig.align = 'left', dpi = 100, fig.path = 'figures/NBA/')
+# opts_chunk$set(dev="png", 
+#                dev.args=list(type="cairo"),
+#                dpi=96)
+```
+
+## PRELIMINARIES
+
+Libraries needed for data processing and plotting:
+```{r load_packages, cache = FALSE, echo = TRUE, message = FALSE, warning = FALSE, tidy = FALSE}
+library("dplyr")
+library("magrittr")
+library("ggplot2")
+```
+
+Source external script with my own handy functions definitions:
+```{r load_my_functions}
+source("./scripts/my_defs_u2.R")
+```
+The content of this external file is included in the Appendix at the end of this report.
+
+## LOADING THE DATA
+
+Read the datasets `NBA_train.csv`:
+```{r load_data, eval = TRUE, cache = TRUE}
+NBA <- read.csv("data/NBA_train.csv")
+str(NBA)
+```
+
+#### Quick description of the variables
+
+__Premise__: There are quite a few variables that have the variable name and then the same
+variable with a 'A' suffix.  
+The variables with 'A' suffix refer to the number that were attempted, the corresponding variables
+without suffix refer to the number that were successful.
+
+* `SeasonEnd` : year the season ended.
+* `Team` : name of the team.
+* `playoffs` : __binary__ variable for whether or not a team made it to the playoffs that year.   
+               If they made it to the playoffs it's a 1, if not it's a 0.
+* `W` : the number of regular season wins.
+* `PTS` : points scored during the regular season.
+* `oppPTS` : opponent points scored during the regular season.
+* `FG`, `FGA` : number of _successful field goals_, including two and three pointers, 
+* `X2P`, `X2PA` : 2-pointers.
+* `X3P`, `X3PA` : 3-pointers.
+* `FT`, `FTA` : free throws.
+* `ORB`, `DRB` : offensive and defensive rebounds.
+* `AST` : assists.
+* `STL` : steals.
+* `BLK` : blocks.
+* `TOV` : turnovers.
+
+__NOTE__: the 2-pointer and 3-pointer variables have an 'X' in front of them, added by `R` 
+when reading the dataset to make variable names conform to `R` _rules_.
+
+
+## Part 2 : HOW MANY WINS TO MAKE THE PLAYOFFS?
+
+```{r p2-1, render=print}
+tmp <- group_by(NBA, W) %>% summarise(nTot = n(), nPO = sum(Playoffs), fracPO = nPO/nTot)
+print(tmp)
+```
+
+Let's take a look at the table, around the middle section.
+
+* We see that a team who wins say about 35 games or fewer almost never makes it to the playoffs.
+* We see that the fraction of times going to the playoffs, `fracPO`, does not rise from zero 
+  until after 35 wins.
+* __Above about 45 wins, teams almost always (>90%) make it to the playoffs__.
+
+This can very clearly seen also visually:
+```{r plot_wins_playoffs}
+plot(tmp$W, tmp$fracPO, pch = 21, col = "red2", bg = "orange", 
+     xlab = "Wins", ylab = "Frequency", main = "Playoff Qualification Frequency vs. Number of Regular Season Wins")
+abline(h = 0.9, lty = 2, col = "red2")
+abline(v = 35, lty = 2, col = "blue2")
+abline(v = 45, lty = 2, col = "blue2")
+```
+
+### How can we predict Wins?
+
+Games are won by scoring more points than the other team.   
+Can we use the _difference between points scored and points allowed_ throughout the regular season
+in order to _predict the number of games_ that a team will _win_?
+
+#### Compute points difference
+
+We add a variable that is the difference between points scored and points allowed.
+
+```{r pts_diff}
+NBA$PTSdiff <- NBA$PTS - NBA$oppPTS
+```
+
+#### Check for linear relationship between `PTSdiff` and `W`
+
+```{r pts_diff_plot}
+plot(NBA$PTSdiff, NBA$W, pch = 21, col = "red2", bg = "orange", 
+     xlab = "PTS difference", ylab = "Wins", main = "Regular Season Wins vs. Total Regular Season Scored Points")
+```
+
+It looks like there is a very strong linear relationship between these two variables.   
+It seems like _linear regression_ is going to be a good way to predict how many wins
+a team will have given the point difference.
+
+#### Linear regression model for wins (`W`)
+
+Let's try to verify this.
+So we're going to have `PTSdiff` as the independent variable in our regression,
+and `W` for wins as the dependent variable.
+
+```{r pts_diff_lm}
+Wins_Reg <- lm(W ~ PTSdiff, data = NBA)
+
+summary(Wins_Reg)
+```
+Yielding the following relationship between the two variables
+$$
+W = `r round(Wins_Reg$coeff[1],4)` + `r round(Wins_Reg$coeff[2],4)`*(PTSdiff)
+$$
+
+We saw earlier with the table that a team would want to win about at least 45 games in order to
+have about $>90\%$ chance of making it to the playoffs.  
+What does this mean in terms of their points difference?
+
+With the linear regression model we can compute the `PTSdiff` needed to get `W`$\ge45$, i.e.
+`PTSdiff`$\ge `r round((45.0 - Wins_Reg$coeff[1])/Wins_Reg$coeff[2], 1)`$.
+
+
+
+## Part 3 : Linear regression model for points scored 
+
+
+Let's build an equation to predict points scored using some common basketball statistics.
+
+Our dependent variable would be `PTS`, and our independent variables would be some of the common
+basketball statistics that we have in our data set.
+For example, 
+
+* the number of two-point field goal attempts `X2PA`,
+* the number of three-point field goal attempts `X3PA`,
+* free throw attempts.
+* offensive rebounds, defensive rebounds,
+* assists, steals, blocks, turnovers,
+
+We can use all of these.
+
+
+### Model-1 : 9 predictors
+
+```{r p3_pts_scored_lm}
+PointsReg1 <- lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + DRB + TOV + STL + BLK, data = NBA)
+
+summary(PointsReg1)
+```
+
+Taking a look at this, we can see that 
+
+* Some of the variables are indeed very significant.
+* Others less so: for example, _steals_ (`STL`) only has one significance star.
+* Some don't seem to be significant at all: for example, defensive rebounds, turnovers, and blocks (`DRB`, `TOV`, `BLK`).
+
+We do have a pretty good $R^2$ value, __`r round(summary(PointsReg1)$r.squared, 4)`__, 
+which shows that there really is a linear relationship between points and all of these basketball statistics.
+
+#### Some summary statistics.
+
+_Sum of Squared Errors (SSE)_ (not a very interpretable quantity)
+```{r p3_pts_scored_SSE}
+SSE <- sum(PointsReg1$residuals^2)
+SSE
+```
+
+_Root Mean Squared Error (RMSE)_, more interpretable, sort of the average error made.
+```{r p3_pts_scored_RMSE}
+# RMSE <- sqrt(SSE/nrow(NBA))
+RMSE <- sqrt(SSE/PointsReg1$df.residual)
+RMSE
+```
+
+It does seem line a very large error, but it should be seen in the context of the 
+total number of points scored on average in a full season, which is:
+```{r avrg_pts}
+mean(NBA$PTS)
+```
+So, the _fractional error_ of this model is about __`r round(100*RMSE/mean(NBA$PTS), 1)`%__, which is
+fairly small.
+
+
+### Correlations between predictors
+
+It may be interesting to check the correlations between the variables that we included in this
+first model, to get some hints as to _collinearity_, which could be relevant to know if we wanted 
+to remove some variables.
+
+```{r correlations, cache = TRUE, fig.width=8}
+par(mar=c(5, 4, 4, 1)+0.1)
+par(oma=c(0, 0, 0, 0))
+pairs(NBA[, c("X2PA", "X3PA", "FTA", "AST", "ORB", "DRB", "TOV", "STL", "BLK")], gap=0.5,  las=1, 
+      pch=21, bg=rgb(0,0,1,0.25), 
+      panel=mypanel, lower.panel=function(...) panel.cor(..., color.bg=TRUE), main="")
+mtext(side=3, "pairs plot with correlation values", outer=TRUE, line=-1.2, font=2)
+mtext(side=3, "Dashed lines are 'lm(y~x)' fits.\nCorrelation and scatterplot frames are color-coded on the strength of the correlation",
+      outer=TRUE, line=-1.6, padj=1, cex=0.8, font=1)
+```
+
+
+### More models by removing insignificant variables
+
+The first model seems to be quite accurate.
+However, we probably have room for improvement in this model, because not all the variables that
+we included were significant.
+Let's see if we can remove some of the insignificant variables, and we will do it _one at a time, incrementally_.
+
+#### Model-2 : remove `TOV`
+
+```{r new_model2}
+PointsReg2 <- lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + DRB + STL + BLK, data = NBA)
+
+summary(PointsReg2)
+```
+
+Let's take a look at the $R^2$ of `PointsReg2`: __$R^2 = `r round(summary(PointsReg2)$r.squared, 4)`$__.
+
+It is almost exactly identical to the $R^2$ of the original model.
+It does go down, as we would expect, but very, very slightly.
+So it seems that we're justified in removing turnovers, `TOV`.
+
+#### Model-3 : remove `DRB`
+
+Let's see if we can remove another one of the insignificant variables.
+The next one, based on p-value, that we would want to remove is defensive rebounds, `DRB`.
+
+```{r new_model3}
+PointsReg3 <- lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + STL + BLK, data = NBA)
+
+summary(PointsReg3)
+```
+
+Let's look at the $R^2$ again and see if it has changed. It is __`r round(summary(PointsReg3)$r.squared, 4)`__.   
+Once again is basically unchanged.
+So it looks like we are justified again in removing defensive rebounds, `DRB`.
+
+
+#### Model-4 : remove `BLK`
+
+Let's try this one more time and see if we can remove blocks, `BLK`.
+
+```{r new_model4}
+PointsReg4 <- lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + STL, data = NBA)
+
+summary(PointsReg4)
+```
+
+One more time, we check the $R^2$: it is __`r round(summary(PointsReg4)$r.squared, 4)`__.  
+It stayed the same again.
+
+So now we have gotten down to a model which is a bit simpler.
+All the variables are significant.
+We've still got an similarly good $R^2$.
+
+
+#### Summary statistics for Model-4.
+
+Let's take a look now at _SSE_ and _RMSE_ just to make sure we did not inflate them too much by removing a few variables.
+```{r new_model_stats}
+SSE_4 <- sum(PointsReg4$residuals^2)
+RMSE_4 <- sqrt(SSE_4/nrow(NBA))
+```
+The values for _Model-4_ (`PointsReg4`) are _SSE_ = __`r round(SSE_4, 1)`__ and _RMSE_ = __`r round(RMSE_4, 4)`__.   
+This latter to be compared with the _RMSE_ of the first model, _i.e._ __`r round(RMSE, 4)`__.
+
+Essentially, we've kept the _RMSE_ the same.
+So it seems like we have narrowed down on a much better model because it is simpler, it is more interpretable,
+and it's got just about the same amount of error.
+
+
+## Part 4 : MAKING PREDICTIONS
+
+
+In this last part we will try to make predictions for the 2012-2013 season.
+We need to load our __test set__ because our training set only included data from 1980 up until the 2011-2012 season.
+
+### Read-in _test set_
+
+```{r p4 load_test}
+NBA_test <- read.csv("data/NBA_test.csv")
+```
+
+### Model-4 predictions on _test set_
+
+Let's try to predict using our model `PointReg4` how many points we will see in the 2012-2013 season.
+We use the `predict()` command here, and we give it the model that we just determined to be the best one.
+The new data which is `NBA_test`.
+
+```{r predictions}
+PointsPredictions <- predict(PointsReg4, newdata = NBA_test)
+```
+
+Now that we have our prediction, how good is it?
+
+We can compute the __out of sample $R^2$__.
+This is a measurement of how well the model predicts on test data.   
+The $R^2$ value we had before from our model, the __`r round(summary(PointsReg4)$r.squared, 4)`__, 
+is the measure of an __in-sample $R^2$__, which is how well the model fits the _training data_.   
+But to get a measure of the predictions goodness of fit, we need to calculate the __out of sample $R^2$__.
+
+#### Out-Of-Sample $R^2$ and RMSE
+
+First we need to compute the _sum of squared errors (SSE)_, _i.e._ the sum of the predicted amount
+minus the actual amount of points squared
+```{r OoS_SSE}
+SSE <- sum((PointsPredictions - NBA_test$PTS)^2)
+```
+We also need the _total sums of squares (SST)_, which is just the sum of the _test set_ actual
+number of points minus the average number of points in the _training set_.
+```{r OoS_SST}
+SST <- sum((mean(NBA$PTS) - NBA_test$PTS)^2)
+```
+The $R^2$ then is calculated as usual, 1 minus the sum of squared errors divided by total sums of squares.
+```{r OOS_R2}
+R2 <- 1 - SSE/SST
+```
+The __Out Of Sample__ __$R^2$__ is __`r round(R2, 4)`__.
+
+```{r OOS_RMSE}
+RMSE <- sqrt(SSE/nrow(NBA_test))
+```
+At __`r round(RMSE, 2)`__, it is a little higher than before, But it's not too bad.   
+Predicting __unseen data__ we are making an average error of about __`r round(RMSE, 0)`__.
+
+
+---
+
+## APPENDIX : external functions
+
+```{r echo = FALSE, cache = FALSE}
+read_chunk("./scripts/my_defs_u2.R")
+```
+
+Additional locally defined functions, from the external file loaded at the beginning.
+```{r eval = FALSE, cache = FALSE}
+<<my_handy_defs>>
+```
+
+

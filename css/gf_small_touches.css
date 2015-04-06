@@ -1,0 +1,94 @@
+body {
+    max-width: 1200px;
+    margin: auto;
+    padding: 1em;
+    /* font-size: 12px;  */
+}
+h2 { font-size:1.8em; color: #2C2072; margin-top: 36px !important; }
+h3 { font-size:1.4em; color: #AF0810; margin-top: 24px !important; }
+h4 { font-size:1.2em; color: #1C6C17; margin-top: 36px !important;  }
+
+h1.title { font-size: 2.6em; font-weight: bold; color: #660000; margin-bottom: 4px !important; } 
+h1.subtitle { font-size: 1.6em; color: #882222; margin-top: 4px !important} 
+h4.author { font-size: 1.2em; font-style: oblique; color: #333333; margin-top: 4px !important} 
+
+pre {
+    margin: 2px 3% 10px 3%;
+    max-width: 96%;
+    white-space: pre-wrap;
+    border: 1px solid #AAA; 
+    /* border: 1px solid #944;  */
+}
+
+code {
+    font-size: 90%; 
+    border: 0px;
+    /* border-top: 1px dotted #AAD;  */
+    border-top: 0px dotted #AAD; 
+    border-bottom: 1px dotted #A77; 
+    padding: 0px 2px 0px 2px;
+    /* background-color: #ADADFD; */
+    background-color: #F5F5FF !important;  
+    color: #339933;
+    border-radius: 1px;
+}
+
+pre.sourceCode { 
+    font-size: 90%; 
+    line-height: 105%;
+    /* background-color: #EEFFEE;  */
+}
+
+pre > code {
+    border: 0px; 
+    background-color: transparent !important;  
+    /* font-size: 90%;  */
+    /* background-color: #EEFFEE;  */
+}
+
+code.sourceCode {
+    border: 0px; 
+    /* font-size: 90%;  */
+    /* background-color: #EEFFEE;  */
+}
+
+code.r {
+    /* This actuall overrides the color in the spans with code */
+    /* color: #FF3333; */
+    /* background-color: #EEFFEE; */
+    /* border: 1px solid #AAAADD; */
+}
+
+/*
+code.quote {
+    background-color: #FFEEEE;
+    color: #7A0F14;
+    border: 1px solid #FAA; 
+}
+*/
+
+/*
+code.quiz {
+    background-color: #FFEEEE;
+    color: #140F7A;
+    margin: 0px;
+}
+*/
+
+h2 > code { color: #2C2072; }
+h3 > code { color: #AF0810; }
+h4 > code { color: #1C6C17; }
+
+span.math {
+    /* font-size: large; */
+}
+
+img {
+    padding: 0px;
+    border: 0px;
+    margin: 0px;
+    /* margin-left: 10%; */
+    /* margin-right: 10%; */
+    /* padding: 5px 0.5em 5px 0.5em; */
+    /* border: 1px solid #000000; */
+}
