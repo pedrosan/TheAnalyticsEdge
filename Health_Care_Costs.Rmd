@@ -25,6 +25,9 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE,
 #                dpi=96)
 ```
 
+[ [source files available on GitHub](https://github.com/pedrosan/TheAnalyticsEdge) ]
+
+
 ## PRELIMINARIES
 
 Libraries needed for data processing and plotting:

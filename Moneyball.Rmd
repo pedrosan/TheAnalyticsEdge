@@ -1,5 +1,5 @@
 ---
-title: "The Analytics Edge - Unit 2 : Moneyball"
+title: "The Analytics Edge - Unit 2 :<br /> Moneyball"
 subtitle    : Reproducible notes following lecture slides and videos
 author      : Giovanni Fossati
 job         : Rice University
@@ -24,6 +24,8 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE,
 #                dev.args=list(type="cairo"),
 #                dpi=96)
 ```
+
+[ [source files available on GitHub](https://github.com/pedrosan/TheAnalyticsEdge) ]
 
 ## PRELIMINARIES
 
