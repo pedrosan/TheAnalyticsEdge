@@ -8,6 +8,7 @@ They are published on my [RPubs repository](http://rpubs.com/PedroSan)
 
 * [Table of Content](http://rpubs.com/PedroSan/TAEuX_ToC)
 
+
 * [Unit 2 : Moneyball](http://rpubs.com/PedroSan/TAEu2_Moneyball)
 * [Unit 2 : NBA MoneyBall (recitation)](http://rpubs.com/PedroSan/TAEu2_NBA)
 * [Unit 3 : Replicating Expert Assessment](http://rpubs.com/PedroSan/TAEu3_Expert)
