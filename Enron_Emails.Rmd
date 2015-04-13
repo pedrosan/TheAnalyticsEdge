@@ -1,0 +1,457 @@
+---
+title: "The Analytics Edge - Unit 5 :<br /> Text Analytics on Enron Emails"
+subtitle    : Reproducible notes following lecture slides and videos
+author      : Giovanni Fossati
+job         : Rice University
+output      : 
+  html_document:
+    self_contained: true
+    theme: cerulean
+    highlight: tango
+    css: css/gf_small_touches.css
+    mathjax: "default"
+---
+
+```{r setup, cache = FALSE, echo = FALSE, message = FALSE, warning = FALSE, tidy = FALSE}
+require(knitr)
+options(width = 100, scipen = 5)
+# options(width = 100, digits = 7)
+opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE, 
+               collapse = TRUE, tidy = FALSE,
+               cache = FALSE, cache.path = '.cache/', 
+               fig.align = 'left', dpi = 100, fig.path = 'figures/Enron_Emails/')
+# opts_chunk$set(dev="png", 
+#                dev.args=list(type="cairo"),
+#                dpi=96)
+```
+
+## PRELIMINARIES
+
+Libraries needed for data processing and plotting:
+```{r load_packages, cache = FALSE, echo = TRUE, message = FALSE, warning = FALSE, tidy = FALSE}
+library("tm")
+library("SnowballC")
+
+library("caTools")
+library("rpart")
+library("rpart.plot")
+library("ROCR")
+```
+
+```{r saved_load_libs, echo = FALSE, eval = FALSE}
+# library("dplyr")
+# library("magrittr")
+# library("ggplot2")
+
+# library("caret")
+# library("e1071")
+# library("randomForest")
+# library("caret")
+# library("e1071")
+```
+
+
+## INTRODUCTION
+
+We will be looking into how to use the text of emails in the inboxes of Enron executives to
+predict if those emails are relevant to an investigation into the company.
+
+We will be extracting word frequencies from the text of the documents, and then integrating those
+frequencies into predictive models.  
+
+We are going to talk about __predictive coding__ -- an emerging use of text analytics in the area
+of criminal justice.
+
+The case we will consider concerns Enron, a US energy company based out of Houston, Texas that was
+involved in a number of electricity production and distribution markets and that collapsed in the
+early 2000's after widespread account fraud was exposed. 
+To date Enron remains a stunning symbol of corporate corruption. 
+
+While Enron's collapse stemmed largely from accounting fraud, the firm also faced sanctions for
+its involvement in the California electricity crisis.    
+In 2000 to 2001, California experienced a number of power blackouts, despite having sufficient
+generating capacity.    
+It later surfaced that Enron played a key role in this energy crisis by artificially reducing
+power supply to spike prices and then making a profit from this market instability.
+
+The _Federal Energy Regulatory Commission_, or _FERC_, investigated Enron's involvement in the
+crisis, and its investigation eventually led to a \$1.52 billion settlement.     
+FERC's investigation into Enron will be the topic of today's recitation.
+
+### The _eDiscovery_ Problem 
+
+Enron was a huge company, and its corporate servers contained millions of emails and other electronic files.
+Sifting through these documents to find the ones relevant to an investigation is no simple task.
+
+In law, this electronic document retrieval process is called the __eDiscovery problem__,
+and __relevant files__ are called __responsive documents__.     
+Traditionally, the eDiscovery problem has been solved by using keyword search.
+In our case, perhaps, searching for phrases like "_electricity bid_" or "_energy schedule_",
+followed by an expensive and time-consuming manual review process, in which attorneys read through
+thousands of documents to determine which ones are responsive.
+
+### Predictive Coding
+
+__Predictive coding__ is a new technique in which attorneys manually label some documents and then
+use text analytics models trained on the manually labeled documents to predict which of the
+remaining documents are responsive.
+
+
+### The Data
+
+As part of its investigation, the _FERC_ released hundreds of thousands of emails from top
+executives at Enron creating the __largest publicly available set of emails today__.   
+We will use this data set called the _Enron Corpus_ to perform predictive coding in this recitation.
+
+The data set contains just two fields:
+
+* __email__: the text of the email in question, 
+* __responsive__: a binary (0/1) variable telling whether the email relates to energy schedules or bids.
+
+The labels for these emails were made by attorneys as part of the 2010 text retrieval conference
+legal track, a predictive coding competition.
+
+
+## LOADING THE DATA
+
+```{r loading_data}
+emails <- read.csv("data/energy_bids.csv.gz", stringsAsFactors = FALSE)
+```
+
+```{r check_df}
+str(emails)
+```
+
+Let's look at a few examples (using the `strwrap()` function for easier-to-read formatting):
+```{r example_email_1}
+strwrap(emails$email[1])
+```
+We can see just by parsing through the first couple of lines that this is an email about a new working paper,
+"_The Environmental Challenges and Opportunities in the Evolving North American Electricity Market_", 
+released by the Commission for Environmental Cooperation, or CEC.    
+While this certainly deals with electricity markets, it doesn't have to do with energy schedules
+or bids, hence it is not _responsive_ to our query.
+If we look at the value in the `responsive` variable for this email: 
+```{r example_email_1_responsive}
+emails$responsive[1]
+```
+we see that its value is __0__, as expected.
+
+ 
+Let's check the second email: 
+```{r example_email_2}
+strwrap(emails$email[2])
+```
+The original message is actually very short, it just says _FYI_, and most of it is a forwarded message.
+We have the list of recipients, and down at the very bottom is the message itself.
+    "Attached is my report prepared on behalf of the California State auditor."
+There is also an attached report.    
+Our data set contains just the text of the emails and not the text of the attachments.
+It turns out, as we might expect, that this attachment had to do with Enron's electricity bids in
+California, and therefore this email is _responsive_ to our query.    
+We can check this in the value of the `responsive` variable.
+```{r example_email_2_responsive}
+emails$responsive[2]
+```
+We see that that it is a __1__.
+
+Let's look at the breakdown of the number of emails that are responsive to our query.
+```{r table_of_responsive}
+table(emails$responsive)
+```
+We see that the data set is unbalanced, with a relatively small proportion of emails responsive to
+the query.  This is typical in predictive coding problems.
+
+
+## CREATING A CORPUS
+
+We will need to convert our tweets to a corpus for pre-processing. 
+Various function in the `tm` package can be used to create a corpus in many different ways.    
+We will create it from the `tweet` column of our data frame using two functions, `Corpus()` and `VectorSource()`.
+We feed to this latter the `Tweets` _variable_ of the `tweets` _data frame_.
+
+```{r create_corpus}
+corpus <- Corpus(VectorSource(emails$email))
+```
+
+Let's take a look at corpus:
+```{r check_corpus}
+corpus
+```
+
+
+### Converting text to _lower case_
+
+We use the `tm_map()` function which takes as
+
+* its first argument the name of a __corpus__ and 
+* as second argument a __function performing the transformation__ that we want to apply to the text.
+
+To transform all text _to lower case_:
+
+```{r process_tolower}
+corpus <- tm_map(corpus, tolower)
+```
+
+```{r process_to_plain_text}
+corpus <- tm_map(corpus, PlainTextDocument)
+```
+
+### Removing punctuation
+
+```{r process_remove_punctuation}
+corpus <- tm_map(corpus, removePunctuation)
+```
+
+
+### Removing _stop words_ 
+
+Removing words can be done with the `removeWords` argument to the `tm_map()` function, with an
+extra argument, _i.e._ what the stop words are that we want to remove, for which we simply 
+use the list for english that is provided by the `tm` package.
+
+We will remove all of these English stop words, but we will also remove the word "_apple_"
+since all of these tweets have the word "_apple_" and it probably won't be very useful in our
+prediction problem.
+
+```{r process_remove_stopwords}
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+```
+
+
+### Stemming
+
+Lastly, we want to stem our document with the `stemDocument` argument.
+```{r process_stemming}
+corpus <- tm_map(corpus, stemDocument)
+```
+
+Now that we have gone through those four preprocessing steps, we can take a second look at the
+first email in the corpus.
+```{r check_corpus_after_cleaning}
+strwrap(corpus[[1]])
+```
+It looks quite a bit different now.
+It is a lot harder to read now that we removed all the stop words and punctuation and word stems,
+but now the emails in this corpus are ready for our machine learning algorithms.
+
+
+## BAG OF WORDS
+
+### Create a _Document Term Matrix_
+
+We are now ready to extract the __word frequencies__ to be used in our prediction problem.
+The `tm` package provides a function called `DocumentTermMatrix()` that generates a __matrix__ where:
+
+* the __rows__ correspond to __documents__, in our case tweets, and 
+* the __columns__ correspond to __words__ in those tweets.
+
+The values in the matrix are the number of times that word appears in each document.
+
+```{r create_DTM}
+DTM <- DocumentTermMatrix(corpus)
+```
+
+```{r check_DRM}
+DTM
+```
+what we can see is that even though we have only __`r DTM$nrow`__ emails in the corpus, 
+we have over __`r DTM$ncol`__ terms that showed up at least once, which is clearly too many
+variables for the number of observations we have.  
+
+So we want to remove the terms that don't appear too often in our data set.
+
+
+### Remove sparse terms
+
+Therefore let's remove some terms that don't appear very often. 
+```{r remove_sparse_terms}
+sparse_DTM <- removeSparseTerms(DTM, 0.97)
+```
+
+Now we can take a look at the summary statistics for the document-term matrix:
+```{r check_lighter_DTM}
+sparse_DTM
+```
+We can see that we have decreased the number of terms to __`r sparse_DTM$ncol`__, 
+which is a much more reasonable number.
+
+
+### Creating a Data Frame from the _DTM_
+
+Let's convert the sparse matrix into a data frame that we will be able to use for our predictive models.
+```{r convert_DTM_to_DF}
+labeledTerms <- as.data.frame(as.matrix(sparse_DTM))
+```
+
+To make all variable names _R-friendly_ use:
+```{r fix_variable_names}
+colnames(labeledTerms) <- make.names(colnames(labeledTerms))
+```
+
+We also have to add back-in the outcome variable
+```{r add_outcome_variable}
+labeledTerms$responsive <- emails$responsive
+```
+
+```{r check_DF}
+# str(labeledTerms)
+```
+
+The data frame contains an awful lot of variables, __`r ncol(labeledTerms)`__ in total, 
+of which __`r ncol(labeledTerms)-1`__ are the frequencies of various words in the emails, 
+and the last one is `responsive`, _i.e._ the outcome variable.
+
+
+### Split data in training/testing sets
+
+Lastly, let's split our data into a training set and a testing set, putting __70%__ of the data in
+the __training__ set.
+
+```{r split_train_test}
+set.seed(144)
+
+split <- sample.split(labeledTerms$responsive, SplitRatio = 0.7)
+
+train <- subset(labeledTerms, split == TRUE)
+test <- subset(labeledTerms, split == FALSE)
+```
+
+
+## BUILD A CART MODEL
+
+Now we are ready to build the model, and we will build a simple _CART model_ using the __default parameters__.
+A random forest would be another good choice from our toolset.  
+```{r CART_model}
+emailCART <- rpart(responsive ~ . , data = train, method = "class")
+```
+
+```{r CART_plot_tree, fig.width = 5, fig.height = 4}
+prp(emailCART)
+```
+We see at the very top is the word _California_.   
+
+* If `californ` appears at least twice in an email, we are going to take the right path and
+  predict that a document is __responsive__.     
+  It is somewhat unsurprising that California shows up, because we know that Enron had a heavy 
+  involvement in the California energy markets.
+* Further down the tree, we see a number of other terms that we could plausibly expect to be
+  related to energy bids and energy scheduling, like `system`, `demand`, `bid`, and `gas`.
+* Down at the bottom is `jeff`, which is perhaps a reference to Enron's CEO, Jeff Skillings, 
+  who ended up actually being jailed for his involvement in the fraud at the company.
+
+
+### Out-of-Sample Performance of the Model
+
+Now that we have trained a model, we need to evaluate it on the test set.  
+We build an object `predictCART` that has the predicted probabilities for each class from our CART model,
+by using the `predict()` function on the model `emailCART` and the test data with `newdata = test`.
+```{r model_CART_predict_test}
+predictCART <- predict(emailCART, newdata = test)
+```
+This new object gives us the predicted probabilities on the test set.
+We can look at the first 10 rows with 
+```{r check_predictions}
+predictCART[1:10, ]
+```
+
+* The __first__ column is the predicted probability of the document being __non-responsive__.
+* The __second__ column is the predicted probability of the document being __responsive__.
+* They sum to 1.
+
+In our case we are interested in the predicted probability of the document being responsive
+and it would be convenient to handle that as a separated variable.
+```{r predict_prob_vector}
+predictCART.prob <- predictCART[ , 2]
+```
+This new object contains our test set predicted probabilities.
+
+We are interested in the __accuracy__ of our model on the test set, _i.e._ out-of-sample.
+First we compute the _confusion matrix_:
+```{r CART_confusion_matrix}
+cmat_CART <- table(test$responsive, predictCART.prob >= 0.5)
+cmat_CART 
+
+accu_CART <- (cmat_CART[1,1] + cmat_CART[2,2])/sum(cmat_CART)
+```
+* __Overall accuracy__ of this _CART_ model is __`r round(accu_CART,4)`__    
+* __Sensitivity__ = __TP rate__ = `r cmat_CART[2,2]` / `r sum(cmat_CART[2,])` = __`r round(cmat_CART[2,2]/sum(cmat_CART[2,]),3)`__
+* __Specificity__ = __(1 - FP rate)__ = `r cmat_CART[1,1]` / `r sum(cmat_CART[1,])` = __`r round(cmat_CART[1,1]/sum(cmat_CART[1,]),3)`__
+* __FP rate__ = `r cmat_CART[1,2]` / `r sum(cmat_CART[1,])` = __`r round(cmat_CART[1,2]/sum(cmat_CART[1,]),3)`__
+* __FN rate__ = `r cmat_CART[2.1]` / `r sum(cmat_CART[2,])` = __`r round(cmat_CART[2,1]/sum(cmat_CART[2,]),3)`__
+
+
+### Comparison with the _baseline model_
+
+Let's compare this to a simple baseline model that __always predicts non-responsive__ (_i.e._ the
+most common value of the dependent variable).   
+To compute the accuracy of the baseline model, let's make a table of just the outcome variable `responsive`.
+```{r baseline_accuracy}
+cmat_baseline <- table(test$responsive)
+cmat_baseline
+
+accu_baseline <- max(cmat_baseline)/sum(cmat_baseline)
+```
+The accuracy of the baseline model is then __`r round(accu_baseline,4)`__.     
+We see just a small improvement in accuracy using the CART model, which is a common case in
+unbalanced data sets.
+
+However, as in most document retrieval applications, there are __uneven costs for different types of errors__ here.   
+Typically, a human will still have to manually review all of the predicted responsive documents to
+make sure they are actually responsive.    
+Therefore: 
+
+* If we have a __false positive__, _i.e._ a non-responsive document labeled as responsive, 
+  the mistake translates to a bit of additional work in the manual review process but no further 
+  harm, since the manual review process will remove this erroneous result.    
+* On the other hand, if we have a __false negative__, _i.e._ a responsive document labeled as non-responsive 
+  by our model, we will miss the document entirely in our predictive coding process.   
+
+Therefore, we are going to assign a higher cost to false negatives than to false positives, which
+makes this a good time to look at other cut-offs on our ROC curve.
+
+
+### ROC curve
+
+Let's look at the ROC curve so we can understand the performance of our model at different cutoffs.   
+To plot the ROC curve we use the `performance()` function to extract the _true positive rate_ 
+and _false positive rate_.
+```{r ROCR_prediction_object}
+predROCR <- prediction(predictCART.prob, test$responsive)
+perfROCR <- performance(predROCR, "tpr", "fpr")
+```
+
+We then plot the ROC curve, with the option that color-codes the different cutoff thresholds.
+```{r get_ROC_2, fig.width = 6, fig.height = 5}
+plot(perfROCR, colorize = TRUE, lwd = 4)
+```
+The best cutoff to select is entirely dependent on the costs assigned by the decision maker to
+false positives and true positives.   
+However, we do favor cutoffs that give us a __high sensitivity__, _i.e._ we want to identify a 
+large number of the responsive documents.
+
+Therefore a choice that might look promising could be in the part of the curve where it becomes
+flatter (going towards the right), where we have a __true positive rate of around 70%__ (meaning
+that we're getting about 70% of all the responsive documents), and 
+a __false positive rate of about 20%__ (meaning that we are making mistakes and accidentally
+identifying as responsive 20% of the non-responsive documents.)
+
+Since, typically, the vast majority of documents are non-responsive, operating at this cutoff
+would result in a large decrease in the amount of manual effort needed in the _eDiscovery_ process.   
+
+From the blue color of the plot at this particular location we can infer that we are looking at a
+threshold around maybe 0.15 or so, significantly lower than 0.5, which is definitely what we would
+expect since we favor false positives to false negatives.
+
+
+### _Area Under the Curve_ (AUC)
+
+```{r AUC}
+auc_CART <- as.numeric(performance(predROCR, "auc")@y.values)
+```
+The AUC of the _CART_ models is __`r round(auc_CART, 4)`__, which means that our model can
+differentiate between a randomly selected responsive and non-responsive document 
+about __`r round(100*auc_CART, 1)`%__ of the time.
+
+---
+
