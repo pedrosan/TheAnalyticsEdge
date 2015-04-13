@@ -12,3 +12,6 @@ randomForest
 lattice
 caret
 e1071
+NLP
+tm
+SnowballC

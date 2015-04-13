@@ -12,6 +12,8 @@ They are published on my [RPubs repository](http://rpubs.com/PedroSan)
 * [Unit 3 : Replicating Expert Assessment](http://rpubs.com/PedroSan/TAEu3_Expert)
 * [Unit 4 : Judge, Jury and Classifier](http://rpubs.com/PedroSan/TAEu4_SCOTUS)
 * [Unit 4 : Predicting Health Care Cost Risk](http://rpubs.com/PedroSan/TAEu4_HealthCareCosts)
+* [Unit 5 : Turning Tweets into Knowledge](http://rpubs.com/PedroSan/TAEu5_Tweets)
+* [Unit 5 : Text Analytics on Enron Emails](http://rpubs.com/PedroSan/TAEu5_EnronEmails)
 
 Please note that these were made for my own interest and benefit and posted just in case they 
 could be helpful for somebody else.
